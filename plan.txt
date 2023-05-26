@@ -1,0 +1,20 @@
+------ Home Page ------------
+
+Carousel Sections 
+   title , subTitle , Image
+
+
+------ Account Sections ----------
+           1. Register   - name,email,password,profile,add
+           2. Login   - username or email and password
+           3. forgat password  - forgat password with help of email
+           4. change password   - change password with help of old password
+           5. profile Update    -  profile Update using multer 
+
+
+1 . email Verification done
+2 . User Registration with profile
+3 . User Login with user id and password
+4 . forgat password 
+5 . profile Update using all field
+
