@@ -1,10 +1,10 @@
 const { DataTypes } = require("sequelize");
-const userModel = require("../../models/register");
+const userModel = require("../../models/authModels/register");
 const bcrypt = require("bcrypt");
 const customErrorHandler = require("../../error/customErrorHandler");
 const jwt = require("jsonwebtoken");
 const { JWT_SECRET, REFRESH_SECRET } = require("../../config/config");
-const refreshTokenModel = require("../../models/refreshToken");
+const refreshTokenModel = require("../../models/authModels/refreshToken");
 
 // ------------------userLogin ------------------------------
 
@@ -29,12 +29,28 @@ exports.userLogin = async (req, res, next) => {
     if (!match) {
       return next(customErrorHandler.wrongCredentials());
     }
+    let clearToken;
+    try {
+      const token = req.cookies.access_token;
+      clearToken = await jwt.verify(token, JWT_SECRET);
+      console.log(clearToken);
+    } catch (error) {
+      console.log(error);
+    }
+
+    if (clearToken) {
+      return res.status(200).json({
+        msg: "User is Already login",
+        username: verifyEmail.name,
+        email: verifyEmail.email,
+      });
+    }
 
     const access_token = jwt.sign(
       { id: verifyEmail.id, email: verifyEmail.email },
       JWT_SECRET,
       {
-        expiresIn: "1h",
+        expiresIn: "10s",
       }
     );
 
@@ -44,7 +60,6 @@ exports.userLogin = async (req, res, next) => {
       REFRESH_SECRET,
       { expiresIn: "1y" }
     );
-    console.log(refresh_token);
     const createToken = await refreshTokenModel.create({
       refreshToken: refresh_token,
     });
@@ -54,12 +69,17 @@ exports.userLogin = async (req, res, next) => {
         message: "User Login Failed",
       });
     }
-    return res.json({
-      success: true,
-      message: "User Login Successfully",
-      access_token: access_token,
-      refresh_token: refresh_token,
-    });
+
+    return res
+      .cookie("access_token", access_token, {
+        httpOnly: true,
+      })
+      .json({
+        success: true,
+        message: "User Login Successfully",
+        access_token: access_token,
+        refresh_token: refresh_token,
+      });
   } catch (error) {
     console.log(error);
     return next(error);

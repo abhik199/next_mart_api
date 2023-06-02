@@ -4,13 +4,15 @@ const { JWT_SECRET } = require("../config/config");
 const auth = async (req, res, next) => {
   try {
     // get token in authHeader
-    const authHeader = req.headers.authorizations;
+    const authHeader = req.headers.authorization;
+
     if (!authHeader) {
       res.status(401).send("UnAuthorization user");
     }
     const token = authHeader.split(" ")[1];
     try {
       const { id, email } = await jwt.verify(token, JWT_SECRET);
+      console.log(id, email);
       const user = {
         id,
         email,

@@ -1,52 +1,68 @@
 const customErrorHandler = require("../../error/customErrorHandler");
-const userModel = require("../../models/register");
-const url = "http://localhost:3200/";
-const folder = "profile/";
-
-//-------Profile Update ---------------------
+const userModel = require("../../models/authModels/register");
+const cloudinary = require("cloudinary").v2;
 
 exports.userUpdate = async (req, res, next) => {
   try {
-    const { name, address } = req.body;
-    const { id } = req.params;
-    const existingUser = await userModel.findOne({
-      where: { id: id },
-    });
+    const user = req.body;
+    const { id } = req.body;
+    const Profile = {};
 
-    if (!existingUser) {
-      return next(customErrorHandler.alreadyExist());
-    }
+    if (req.files !== undefined) {
+      // Remove Old Profile Image
+      const findUrl = await userModel.findOne({ where: { id: id } });
+      const removeOldProfile = await cloudinary.uploader.destroy(
+        findUrl.profile
+      );
+      console.log(removeOldProfile);
 
-    const updatedUser = await userModel.update(
-      {
-        name,
-        address,
-      },
-      { where: { id }, returning: true }
-    );
-
-    if (updatedUser[0] === 0 || !updatedUser[1][0]) {
-      return res.status(409).json({
-        success: false,
-        message: "User update failed.",
+      const imageFile = req.files.profile;
+      const imagePath = imageFile.tempFilePath;
+      const profileUrl = await cloudinary.uploader.upload(imagePath, {
+        folder: "Next_Mart/profile",
+        resource_type: "image",
       });
+      Profile.profile = profileUrl.secure_url;
     }
 
-    const updatedUserProfile = {};
+    const User = {
+      name: user.name,
+      address: user.address,
+    };
 
-    if (req.file !== undefined) {
-      updatedUserProfile.profile = `${url}${folder}${req.file.filename}`;
+    let updateUser;
+    if (Object.keys(Profile).length !== 0) {
+      updateUser = await userModel.update(
+        { ...User, ...Profile },
+        {
+          where: { id: id },
+          returning: true, // Specify returning option to get the updated user details
+        }
+      );
+    } else {
+      updateUser = await userModel.update(
+        { ...User },
+        {
+          where: {
+            id: id,
+          },
+          returning: true, // Specify returning option to get the updated user details
+        }
+      );
     }
-
-    if (Object.keys(updatedUserProfile).length !== 0) {
-      await userModel.update(updatedUserProfile, { where: { id } });
+    if (!updateUser) {
+      res.status(500).json({
+        success: false,
+        message: "User Updated failed",
+      });
+      return;
     }
-
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      message: "User update done.",
+      message: "User updated Successfully",
     });
   } catch (error) {
-    return next(error);
+    console.log(error);
+    res.status(500).send("Internal Server Error");
   }
 };

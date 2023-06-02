@@ -1,5 +1,5 @@
 const { DataTypes } = require("sequelize");
-const sequelize = require("../config/connection");
+const sequelize = require("../../config/connection");
 
 const Register = sequelize.define("Register", {
   id: {
@@ -25,7 +25,7 @@ const Register = sequelize.define("Register", {
   email: {
     type: DataTypes.STRING,
     allowNull: false,
-    unique: true,
+    unique: [true, "Email is already exist"],
     validate: {
       isEmail: true,
     },

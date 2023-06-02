@@ -1,16 +1,15 @@
 const { DataTypes } = require("sequelize");
-const userModel = require("../../models/register");
+const userModel = require("../../models/authModels/register");
 const bcrypt = require("bcrypt");
 const joi = require("joi");
 const multer = require("multer");
-const url = "http://localhost:3200/";
+const { url } = require("../../config/config");
 const folder = "profile/";
 const nodemailer = require("nodemailer");
 const customErrorHandler = require("../../error/customErrorHandler");
 const config = require("../../config/config");
 const crypto = require("crypto");
-
-// Generate a verification token
+const cloudinary = require("cloudinary").v2;
 
 // Generate a verification token
 const generateVerificationToken = () => {
@@ -18,28 +17,6 @@ const generateVerificationToken = () => {
 };
 
 // ----- Multer Image Upload -------------------
-const storage = multer.diskStorage({
-  destination: "public/profile",
-  filename: (req, file, cb) => {
-    // Customize the file name with the current date and original file extension
-    const date = Date.now();
-    const fileName = `${date}_${file.originalname}`;
-    cb(null, fileName);
-  },
-});
-exports.imageUpload = multer({
-  storage: storage,
-  limits: {
-    fileSize: 5000000, // 5000000 Bytes = 5 MB
-  },
-  fileFilter(req, file, cb) {
-    if (!file.originalname.match(/\.(png|jpg)$/)) {
-      // upload only png and jpg format
-      return cb(new Error("Please upload a Image"));
-    }
-    cb(undefined, true);
-  },
-});
 
 // Nodemailer Email Send
 const signup = async (name, email, verificationToken) => {
@@ -59,7 +36,16 @@ const signup = async (name, email, verificationToken) => {
       from: "next_mart",
       to: email,
       subject: "Verification Mail",
-      html: `<p>Hi ${name}, please click <a href="${url}verify-email/${verificationToken}">here</a> to verify your email.</p>`,
+      // html: `<p>Hi ${name}, please click <a href="${url}verify-email/${verificationToken}">here</a> to verify your email.</p>`,
+      html: `
+        <h1>Email Verification</h1>
+        <p>Hi ${name},</p>
+        <p>Thank you for registering with our website. Please click the link below to verify your email address:</p>
+        <p><a href="${url}verify-email/${verificationToken}">Verify Email</a></p>
+        <p>If you did not sign up for an account, please ignore this email.</p>
+        <p>Thank you,</p>
+        <p>Your Website Team</p>
+      `,
     };
 
     transporter.sendMail(message, (error, info) => {
@@ -78,24 +64,20 @@ const signup = async (name, email, verificationToken) => {
 
 exports.userRegistration = async (req, res, next) => {
   try {
+    const User = req.body;
     const findEmail = await userModel.findOne({
-      where: { email: req.body.email },
+      where: { email: User.email },
     });
     if (findEmail) {
       return next(customErrorHandler.alreadyExist());
     }
-    const User = req.body;
+
     const hashPassword = await bcrypt.hash(User.password, 10);
-    // Generate a verification token
     const verificationToken = generateVerificationToken();
     User.password = hashPassword;
     User.verificationToken = verificationToken;
 
     const Profile = {};
-
-    if (req.file !== undefined) {
-      Profile.profile = `${url}${folder}${req.file.filename}`;
-    }
 
     let createUser;
     if (Object.keys(Profile).length !== 0) {
@@ -104,18 +86,31 @@ exports.userRegistration = async (req, res, next) => {
       createUser = await userModel.create(User);
     }
 
-    if (createUser.length === 0) {
+    if (!createUser) {
       res.status(409).json({
         success: false,
-        message: "user insert failed",
+        message: "User insert failed",
       });
+
       return;
     }
+
+    // Call the signup function to send the verification email
     signup(User.name, User.email, User.verificationToken);
+
     res.status(201).json({
       success: true,
-      message: "user insert done",
+      message: "User insert done",
     });
+    if (req.files !== undefined) {
+      const imageFile = req.files.profile;
+      const imagePath = imageFile.tempFilePath;
+      const profileUrl = await cloudinary.uploader.upload(imagePath, {
+        folder: "Next_Mart/profile",
+        resource_type: "image",
+      });
+      Profile.profile = profileUrl.secure_url;
+    }
     return;
   } catch (error) {
     return next(error);

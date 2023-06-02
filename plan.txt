@@ -18,3 +18,13 @@ Carousel Sections
 4 . forgat password 
 5 . profile Update using all field
 
+
+
+
+Forgot/Reset Password create Api 
+first is send valid Url to user email address
+
+
+
+create Categories image 
+id , name, icon

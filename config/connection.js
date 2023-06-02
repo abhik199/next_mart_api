@@ -3,6 +3,7 @@ const { Sequelize } = require("sequelize");
 const sequelize = new Sequelize("NEXT_MART", "root", "", {
   host: "localhost",
   dialect: "mysql",
+  logging: false,
 });
 
 try {

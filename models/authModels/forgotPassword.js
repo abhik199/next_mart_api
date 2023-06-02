@@ -1,4 +1,4 @@
-const sequelize = require("../config/connection");
+const sequelize = require("../../config/connection");
 const { DataTypes } = require("sequelize");
 
 const forgotPassword = sequelize.define("ForgotPassword", {
@@ -8,10 +8,14 @@ const forgotPassword = sequelize.define("ForgotPassword", {
     autoIncrement: true,
     primaryKey: true,
   },
-  resetPasswordToken: {
+  key: {
     type: DataTypes.STRING,
     allowNull: true,
     unique: true,
+  },
+  expirationTime: {
+    type: DataTypes.DATE,
+    allowNull: false,
   },
 });
 

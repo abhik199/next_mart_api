@@ -1,0 +1,12 @@
+Dear Abhishek kirar ,
+
+Recently a request was submitted to reset your password for our client area. If you
+did not request this, please ignore this email. It will expire and become useless in 2
+hours time.
+
+To reset your password, please visit the url below:
+https://my.freenom.com/pwreset.php?key=61d02e04750cb4a44b8ee4fc22864ef5
+
+When you visit the link above, you will have the opportunity to choose a new password.
+
+Freenom - A Name for Everyone

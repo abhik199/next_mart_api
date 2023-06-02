@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- Head content -->
+  </head>
+  <body>
+    <label>New Password</label>
+    <input type="text" name="newPassword" id="newPassword" />
+    <br />
+    <br />
+    <label>Confirm Password</label>
+    <input type="text" name="confirm_password" id="confirm_password" />
+    <br />
+    <br />
+    <input type="submit" value="Update" onclick="Call(event)" />
+
+    <script>
+      function Call(event) {
+        event.preventDefault(); // Prevent form submission and page reload
+
+        const newPassword = document.getElementById("newPassword").value;
+        const confirm = document.getElementById("confirm_password").value;
+
+        if (newPassword !== confirm) {
+          alert("Confirm Password does not match");
+          return;
+        }
+
+        const url = "http://localhost:3200/new_password";
+        const postData = {
+          newPassword: newPassword,
+        };
+
+        const requestOptions = {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(postData),
+        };
+
+        fetch(url, requestOptions)
+          .then((response) => response.json())
+          .then((data) => {
+            console.log(data); // Handle the response data
+          })
+          .catch((error) => {
+            console.error(error); // Handle any errors
+          });
+      }
+    </script>
+  </body>
+</html>
