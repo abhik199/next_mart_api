@@ -28,3 +28,20 @@ first is send valid Url to user email address
 
 create Categories image 
 id , name, icon
+
+
+
+Today Work flow 
+Date - 06/06/23
+Logic create Store Data and Send response then but not upload Image After autoIncrement This key Set Default DataTypes 
+
+
+
+1. First Create Image Sections with Image Routes 
+
+
+
+Update User Profile 
+
+
+
