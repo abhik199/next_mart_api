@@ -1,15 +1,16 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../../config/connection");
+const Register = require("../auth.model/register.model");
 
 const Category = sequelize.define("Category", {
-  Id: {
+  id: {
     type: DataTypes.INTEGER,
     allowNull: false,
     autoIncrement: true,
     primaryKey: true,
   },
 
-  category_name: {
+  name: {
     type: DataTypes.STRING,
     allowNull: false,
     validate: {
@@ -24,7 +25,11 @@ const Category = sequelize.define("Category", {
   },
 });
 
+Register.hasMany(Category, {
+  foreignKey: "id",
+});
+
 // Create the table
-Category.sync();
+Category.sync({ alter: false });
 
 module.exports = Category;

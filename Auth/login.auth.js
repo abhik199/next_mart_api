@@ -1,8 +1,9 @@
 const { DataTypes } = require("sequelize");
-const userModel = require("../models/auth.model/register.model");
 const bcrypt = require("bcrypt");
-const customErrorHandler = require("../error/customErrorHandler");
 const jwt = require("jsonwebtoken");
+
+const userModel = require("../models/auth.model/register.model");
+const customErrorHandler = require("../error/customErrorHandler");
 const { JWT_SECRET, REFRESH_SECRET } = require("../config/config");
 const refreshTokenModel = require("../models/auth.model/refreshToken.model");
 
@@ -10,12 +11,8 @@ const refreshTokenModel = require("../models/auth.model/refreshToken.model");
 
 exports.userLogin = async (req, res, next) => {
   const { email, password } = req.body;
-  if (!email) {
-    return res.status(400).json({ message: "Email is required" });
-  }
-
-  if (!password) {
-    return res.status(400).json({ message: "Password is required" });
+  if (!email || !password) {
+    return next(customErrorHandler.requiredField());
   }
 
   try {
@@ -23,14 +20,12 @@ exports.userLogin = async (req, res, next) => {
       where: { email: email },
     });
     if (!user) {
-      return res.status(404).json({ message: "email not found" });
+      return next(customErrorHandler.notFound());
     }
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
-      return res.status(401).json({ message: "Invalid password" });
+      return next(customErrorHandler.wrongCredentials());
     }
-    console.log(user, match);
-
     if (user.isVerify !== true) {
       return res.status(404).json({ message: "User is not verified" });
     }
@@ -39,15 +34,11 @@ exports.userLogin = async (req, res, next) => {
       const token = req.cookies.access_token;
       clearToken = await jwt.verify(token, JWT_SECRET);
     } catch (error) {
-      console.log(error);
+      return next(new Error("Failed to verify token"));
     }
 
     if (clearToken) {
-      return res.status(200).json({
-        msg: "User is Already login",
-        username: user.name,
-        email: user.email,
-      });
+      return res.status(403).json({ error: "User is already logged in" });
     }
 
     const access_token = jwt.sign(
@@ -68,10 +59,7 @@ exports.userLogin = async (req, res, next) => {
       refreshToken: refresh_token,
     });
     if (!createToken) {
-      return res.json({
-        success: false,
-        message: "User Login Failed",
-      });
+      return res.status(500).json({ error: "Failed to create refresh token" });
     }
 
     return res
@@ -80,12 +68,10 @@ exports.userLogin = async (req, res, next) => {
       })
       .json({
         success: true,
-        message: "User Login Successfully",
         access_token: access_token,
         refresh_token: refresh_token,
       });
   } catch (error) {
-    console.log(error);
     return next(error);
   }
 };

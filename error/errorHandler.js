@@ -1,5 +1,5 @@
 const customErrorHandler = require("./customErrorHandler");
-const DEBUG_MODE = "true";
+const { DEBUG_MODE } = require("../config/config");
 
 const errorHandler = (error, req, res, next) => {
   let statusCode = 500;

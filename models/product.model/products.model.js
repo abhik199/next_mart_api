@@ -1,19 +1,16 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../../config/connection");
-const subCategory = require("./subcategory.model");
+const Category = require("./categories.model");
+const userModel = require("../../models/auth.model/register.model");
 
-const Products = sequelize.define("Product", {
-  Id: {
+const Product = sequelize.define("Product", {
+  id: {
     type: DataTypes.INTEGER,
     allowNull: false,
     autoIncrement: true,
     primaryKey: true,
   },
   name: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  brand: {
     type: DataTypes.STRING,
     allowNull: false,
   },
@@ -27,23 +24,39 @@ const Products = sequelize.define("Product", {
   },
   discount_percentage: {
     type: DataTypes.FLOAT,
+    allowNull: false,
   },
-  tag: {
-    type: DataTypes.STRING,
+  stock: {
+    type: DataTypes.FLOAT,
+    allowNull: false,
+    defaultValue: 50,
   },
-  product_image: {
+  description: {
     type: DataTypes.STRING,
     allowNull: true,
   },
-  Id: {
+  categoryId: {
     type: DataTypes.INTEGER,
     allowNull: false,
     references: {
-      model: subCategory,
-      key: "subcategoryId",
+      model: Category,
+      key: "id",
     },
   },
 });
 
-Products.sync();
-module.exports = Products;
+Category.hasMany(Product, {
+  foreignKey: "categoryId",
+});
+Product.belongsTo(Category, {
+  foreignKey: "categoryId",
+});
+
+Product.sync({ alter: true })
+  .then((res) => {
+    console.log("Created");
+  })
+  .catch((err) => {
+    console.log(err.message);
+  });
+module.exports = Product;

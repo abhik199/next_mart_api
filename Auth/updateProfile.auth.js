@@ -1,8 +1,9 @@
 const customErrorHandler = require("../error/customErrorHandler");
 const userModel = require("../models/auth.model/register.model");
-const cloudinary = require("cloudinary").v2;
+const path = require("path");
+const fs = require("fs");
 
-exports.userUpdate = async (req, res) => {
+exports.userUpdate = async (req, res, next) => {
   const { name, address } = req.body;
   if (!req.params.id) {
     return res.status(400).json({ message: "ID is required." });
@@ -18,29 +19,59 @@ exports.userUpdate = async (req, res) => {
         name,
         address,
       },
-      { where: { id: req.params.id }, returning: true }
+      { where: { id: userId.id }, returning: true }
     );
     if (!updatedRows) {
       return res.status(400).json({ message: "Update failed" });
     }
     res.status(200).json({ message: "Update successful" });
 
-    if (req.files !== undefined) {
-      // delete Old Image
-      await cloudinary.uploader.destroy(userId.profile);
-      const imageFile = req.files.profile;
-      const imagePath = imageFile.tempFilePath;
-      const profileUrl = await cloudinary.uploader.upload(imagePath, {
-        folder: "Next_Mart/profile",
-        resource_type: "image",
+    if (req.file !== undefined && req.file.length > 0) {
+      const imageUrl = req.file.filename;
+      const folderPath = path.join(process.cwd(), "public/profile");
+      // If not get image without Map()
+      const fileNames = imageUrl.map((img) => {
+        return img;
       });
 
-      await userModel.update({
-        profile: profileUrl.secure_url,
-      });
+      try {
+        // delete old image
+        const { profile } = await userModel.findOne({
+          where: { id: userId.id },
+        });
+        const fileNames = profile.map((img) => {
+          return img;
+        });
+        fileNames.forEach((fileName) => {
+          const filePath = path.join(folderPath, fileName);
+
+          fs.unlink(filePath, (error) => {
+            if (error) {
+              console.log(`Failed to delete ${error.message}`);
+            }
+          });
+        });
+
+        await userModel.update(
+          {
+            profile: imageUrl,
+          },
+          { where: { id: userId.id }, returning: true }
+        );
+      } catch (error) {
+        // remove image error accrued code
+        fileNames.forEach((fileName) => {
+          const filePath = path.join(folderPath, fileName);
+
+          fs.unlink(filePath, (error) => {
+            if (error) {
+              console.log(`Failed to delete ${error.message}`);
+            }
+          });
+        });
+      }
     }
   } catch (error) {
-    console.log(error);
-    return res.status(500).send("Internal Server Error");
+    return next(error);
   }
 };

@@ -11,6 +11,7 @@ const userModel = require("../models/auth.model/register.model");
 const { url } = require("../config/config");
 const customErrorHandler = require("../error/customErrorHandler");
 const config = require("../config/config");
+const path = require("path");
 
 // Generate a verification token
 const generateVerificationToken = () => {
@@ -22,15 +23,14 @@ const generateVerificationToken = () => {
 exports.userRegistration = async (req, res, next) => {
   const { name, email, password, address } = req.body;
   if (!name && !email && !password && !address) {
-    return res.status(400).json({ message: "Missing required fields" });
+    return next(customErrorHandler.requiredField());
   }
-
   try {
     const user = await userModel.findOne({
       where: { email: email },
     });
     if (!user) {
-      return res.status(404).json({ message: "email not found" });
+      return next(customErrorHandler.notFound());
     }
 
     const hashPassword = await bcrypt.hash(user.password, 10);
@@ -45,31 +45,43 @@ exports.userRegistration = async (req, res, next) => {
     if (!createUser || !createUser.length === 0) {
       res.status(400).json({
         status: false,
-        message: "User Registration Failed",
+        message: "Failed to create user",
       });
       return;
     }
     res.status(201).json({
       status: true,
-      message: "User Registration successfully",
+      message: "User created successfully",
     });
     // Call the signup function to send the verification email
     signup(user.name, user.email, user.verificationToken);
 
     // User Profile
-    if (req.files !== undefined) {
-      const imageFile = req.files.profile;
-      const imagePath = imageFile.tempFilePath;
-      const profileUrl = await cloudinary.uploader.upload(imagePath, {
-        folder: "Next_Mart/profile",
-        resource_type: "image",
-      });
-      await userModel.update(
-        {
-          profile: profileUrl.secure_url,
-        },
-        { where: { id: createUser.id }, returning: true }
-      );
+    if (req.file !== undefined && req.file.length > 0) {
+      const imageUrl = req.file.filename;
+
+      try {
+        await userModel.update(
+          {
+            profile: imageUrl,
+          },
+          { where: { id: createUser.id }, returning: true }
+        );
+      } catch (error) {
+        const fileNames = imageUrl.map((img) => {
+          return img;
+        });
+        const folderPath = path.join(process.cwd(), "public/profile");
+        fileNames.forEach((fileName) => {
+          const filePath = path.join(folderPath, fileName);
+
+          fs.unlink(filePath, (error) => {
+            if (error) {
+              console.log(`Failed to delete${error.message}`);
+            }
+          });
+        });
+      }
     }
   } catch (error) {
     return next(error);
@@ -142,7 +154,8 @@ exports.verifyEmail = async (req, res, next) => {
     }
     return res.status(200).send("email verification successfully");
   } catch (error) {
-    console.log("Error verifying email:", error);
-    return res.status(500).json({ message: "Error verifying email." });
+    return next(error);
+    // console.log("Error verifying email:", error);
+    // return res.status(500).json({ message: "Error verifying email." });
   }
 };

@@ -9,6 +9,7 @@ const bcrypt = require("bcrypt");
 const path = require("path");
 const ejs = require("ejs");
 const { url } = require("../config/config");
+const customErrorHandler = require("../error/customErrorHandler");
 
 // Generate a verification token
 const generateVerificationToken = () => {
@@ -61,17 +62,17 @@ const Forgot = async (name, email, key) => {
 exports.forgotPassword = async (req, res, next) => {
   const { email } = req.body;
   if (!email) {
-    return res.status(404).json({ message: "email not found" });
+    return next(customErrorHandler.requiredField());
   }
   try {
     // Check email id
-    const findEmail = await userModel.findOne({ where: { email: email } });
+    const user = await userModel.findOne({ where: { email: email } });
     if (!findEmail) {
-      return res.status(404).json({ msg: "Email is not found" });
+      return next(customErrorHandler.notFound());
     }
     const resetPasswordToken = generateVerificationToken();
     const expirationTime = new Date();
-    expirationTime.setMinutes(expirationTime.getMinutes() + 60); // Set expiration time to  1 hours from now
+    expirationTime.setMinutes(expirationTime.getMinutes() + 60); // Set
 
     const storeToken = await resetPasswordTokenModel.create({
       key: resetPasswordToken,
@@ -84,24 +85,24 @@ exports.forgotPassword = async (req, res, next) => {
       });
     }
     // Email send Verified Email id
-    Forgot(findEmail.name, findEmail.email, storeToken.key);
+    Forgot(user.name, user.email, storeToken.key);
     return res.status(200).json({
       success: true,
       message:
         "The password reset process has now been started. Please check your email for instructions on what to do next",
     });
   } catch (error) {
-    console.log(error);
     return next(error);
   }
 };
 
 // ---------------------- New Password ------------------------
 exports.newPassword = async (req, res, next) => {
+  const { key, email } = req.query;
+  if (!key || !email) {
+    return next(customErrorHandler.requiredField());
+  }
   try {
-    // verify token
-    const { key, email } = req.query;
-
     const keyRecord = await resetPasswordTokenModel.findOne({
       where: { key: key },
     });
@@ -115,15 +116,16 @@ exports.newPassword = async (req, res, next) => {
     await resetPasswordTokenModel.destroy({ where: { key: key } });
     return;
   } catch (error) {
-    console.log(error);
     return next(error);
   }
 };
 
 exports.newPaa = async (req, res) => {
+  const { newPassword, email } = req.body;
+  if (!newPassword || email) {
+    return next(customErrorHandler.requiredField());
+  }
   try {
-    const { newPassword, email } = req.body;
-
     const hashPassword = await bcrypt.hash(newPassword, 10);
     const updatePassword = await userModel.update(
       {
@@ -142,6 +144,6 @@ exports.newPaa = async (req, res) => {
     return res.send("Update done");
     res.end();
   } catch (error) {
-    console.log(error);
+    return next(error);
   }
 };
