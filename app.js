@@ -13,19 +13,7 @@ app.use(express.static("public"));
 
 app.use(cookieParser());
 app.use(cors());
-// app.use(
-//   fileUpload({
-//     useTempFiles: true,
-//   })
-// );
 
-// cloudinary.config({
-//   cloud_name: "dk0oossgq",
-//   api_key: "325312379616162",
-//   api_secret: "CZ95_UeL2UZUPsrpDWgDF9rO1vU",
-// });
-
-// routes
 app.use("/api/v1/auth", require("./routes/auth.Routs"));
 app.use("/api/v1/product", require("./routes/product.Routs"));
 

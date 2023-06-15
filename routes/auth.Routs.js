@@ -9,10 +9,13 @@ const {
   logOut,
   refreshTokenCtr,
 } = require("../Auth/auth");
+const { imageUpload } = require("../controllers/multer");
 
 // POST REQUEST
 
-router.route("/register").post(registerController.userRegistration); // Registration
+router
+  .route("/register")
+  .post(imageUpload.single("profile"), registerController.userRegistration); // Registration
 router.route("/login").post(loginController.userLogin); // Login
 router.route("/forgot_password").post(forgotPasswordCtr.forgotPassword); // Forgot Password
 router.route("/change_password").post(changePassword.changePassword); // Change Password

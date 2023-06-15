@@ -21,19 +21,21 @@ const generateVerificationToken = () => {
 // new user Registration
 
 exports.userRegistration = async (req, res, next) => {
+  console.log(req.body);
   const { name, email, password, address } = req.body;
-  if (!name && !email && !password && !address) {
+  if (!name || !email || !password || !address) {
     return next(customErrorHandler.requiredField());
   }
   try {
-    const user = await userModel.findOne({
+    const users = await userModel.findOne({
       where: { email: email },
     });
-    if (!user) {
+    if (users) {
       return next(customErrorHandler.notFound());
     }
+    const user = req.body;
 
-    const hashPassword = await bcrypt.hash(user.password, 10);
+    const hashPassword = await bcrypt.hash(password, 10);
     const verificationToken = generateVerificationToken();
     const expirationTime = new Date();
     expirationTime.setMinutes(expirationTime.getMinutes() + 30); // 30 minute

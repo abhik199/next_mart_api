@@ -1,3 +1,7 @@
+const path = require("path");
+const fs = require("fs");
+const { Op } = require("sequelize");
+
 const customErrorHandler = require("../../error/customErrorHandler");
 const {
   productModels,
@@ -5,9 +9,12 @@ const {
   imagesModels,
   reviewModels,
   categoryModels,
+  cardModels,
 } = require("../../models/models");
-const path = require("path");
-const fs = require("fs");
+
+//-------------------  Product Section ----------------------------------------
+
+// CreateProduct
 
 exports.createProducts = async (req, res, next) => {
   const { name, price, description, discount_price } = req.body;
@@ -15,7 +22,6 @@ exports.createProducts = async (req, res, next) => {
     return next(customErrorHandler.requiredField());
   }
   try {
-    req.body;
     const selling_price = price;
     const discounted_price = discount_price;
     const discounted_percentage =
@@ -40,14 +46,15 @@ exports.createProducts = async (req, res, next) => {
       message: "product create successfully",
     });
 
-    if (req.files !== undefined && !req.files.length > 0) {
-      const imageFiles = req.files;
+    if (req.files !== undefined && req.files.length > 0) {
+      console.log(req.files);
+      const imageFiles = req.files.filename;
       try {
         const productImages = [];
         for (let i = 0; i < imageFiles.length; i++) {
           const imagePath = `${imageFiles[i].filename}`;
           await imagesModels.create({
-            productId: insertProduct.id,
+            productId: Product.id,
             images: imagePath,
           });
           productImages.push(imagePath);
@@ -72,6 +79,7 @@ exports.createProducts = async (req, res, next) => {
   }
 };
 
+// Get Product
 exports.getProduct = async (req, res, next) => {
   try {
     const products = await productModels.findAll({
@@ -119,7 +127,7 @@ exports.getProduct = async (req, res, next) => {
   }
 };
 
-// Update Image
+// Update  Product
 
 exports.updateProduct = async (req, res) => {
   try {
@@ -129,17 +137,97 @@ exports.updateProduct = async (req, res) => {
   }
 };
 
-// Update Image Single Or Multiple Image
+// --------------------------- Product Image Section   ----------------------------------------
 
-exports.updateImage = async (req, res) => {
+exports.updateImage = async (req, res, next) => {
+  const { id } = req.params;
+  if (!id) {
+    return next(customErrorHandler.requiredField());
+  }
   try {
-  } catch (error) {}
+    if (req.files !== undefined && req.files.length === 0) {
+      const imageFiles = req.files.filename;
+      const fileNames = imageFiles.map((img) => {
+        return img;
+      });
+      const folderPath = path.join(process.cwd(), "public/product");
+      try {
+        const imgFind = await imagesModels.findOne({ where: { id: id } });
+        if (!imgFind) {
+          return next(customErrorHandler.notFound());
+        }
+        fileNames.forEach((fileName) => {
+          const filePath = path.join(folderPath, fileName);
+          fs.unlink(filePath, (error) => {
+            if (error) {
+              console.log(`Failed to delete: ${error.message}`);
+            }
+          });
+        });
+        const updateImg = await imagesModels.update({
+          images: imageFiles,
+        });
+      } catch (error) {
+        fileNames.forEach((fileName) => {
+          const filePath = path.join(folderPath, fileName);
+          fs.unlink(filePath, (error) => {
+            if (error) {
+              console.log(`Failed to delete: ${error.message}`);
+            }
+          });
+        });
+      }
+    }
+  } catch (error) {
+    return next(error);
+  }
 };
 
-exports.deleteProduct = async (req, res) => {
+exports.deleteImage = async (req, res, next) => {
+  const { ids } = req.params;
+  const imageIds = ids.split("-");
   try {
+    const images = await imagesModels.findAll({
+      where: {
+        id: imageIds,
+      },
+    });
+
+    const fileUrl = images.map((img) => {
+      return img.images;
+    });
+
+    const fileNames = fileUrl.map((imageUrl) => {
+      return imageUrl;
+    });
+    console.log(fileNames);
+    const folderPath = path.join(process.cwd(), "public/product"); // Adjust
+
+    fileNames.forEach((fileName) => {
+      const filePath = path.join(folderPath, fileName);
+
+      fs.unlink(filePath, (error) => {
+        if (error) {
+          console.log(`Failed to delete ${fileName}: ${error.message}`);
+        }
+      });
+    });
+
+    if (!images || images.length === 0) {
+      return next(customErrorHandler.notFound());
+    }
+    await imagesModels.destroy({
+      where: {
+        id: imageIds,
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Images deleted successfully",
+    });
   } catch (error) {
-    console.log(error);
+    return next(error);
   }
 };
 
@@ -241,4 +329,234 @@ exports.deleteReview = async (req, res, next) => {
   }
 };
 
-// get review
+//------------------------ pagination -----------------------------
+
+exports.Pagination = async (req, res, next) => {
+  const { page = 1, limit = 5 } = req.query;
+  const offset = (page - 1) * limit;
+  try {
+    const counts = await productModels.count();
+    const { count, rows } = await productModels.findAndCountAll({
+      attributes: { exclude: ["createdAt", "updatedAt"] },
+
+      include: [
+        {
+          model: imagesModels,
+          attributes: { exclude: ["createdAt", "updatedAt"] },
+        },
+      ],
+      offset,
+      limit: +limit,
+    });
+
+    const totalPages = Math.ceil(counts / limit);
+
+    res.json({
+      products: rows,
+      currentPage: +page,
+      totalPages,
+      totalData: count,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// ------------------- Product Search ------------------[-----]
+
+exports.productSearch = async (req, res, next) => {
+  const { query } = req.query;
+  if (!query) {
+    return next(customErrorHandler.requiredField());
+  }
+  try {
+    const products = await productModels.findAll({
+      where: {
+        name: { [Op.like]: `%${query}%` },
+      },
+    });
+
+    if (products.length === 0) {
+      return next(customErrorHandler.notFound());
+    }
+
+    return res.status(200).json({ message: "Products found", products });
+  } catch (error) {
+    console.error(error);
+    return next(error);
+  }
+};
+
+// ---------------------Price Filter -----------------------------
+
+exports.priceFilter = async (req, res, next) => {
+  const { minPrice, maxPrice } = req.query;
+  if (!minPrice || !maxPrice) {
+    return next(customErrorHandler.requiredField());
+  }
+  try {
+    const product = await productModels.findAll({
+      where: { price: { [Op.between]: [minPrice, maxPrice] } },
+    });
+    if (!product || !product === 0) {
+      return next(customErrorHandler.notFound());
+    }
+    return res.status(200).json({ message: "Products found", product });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// ---------- Product Search by category ----------------------------
+
+exports.productSearchByCategory = async (req, res, next) => {
+  if (!req.query.query) {
+    return next(customErrorHandler.requiredField());
+  }
+  try {
+    const category = await categoryModels.findOne({
+      where: { name: req.query.query },
+    });
+    if (!category || category.length === 0) {
+      return next(customErrorHandler.notFound());
+    }
+    // Check product base on id
+    const product = await productModels.findByPk(category.categoryId, {
+      include: {
+        model: categoryModels,
+        attributes: { exclude: ["createdAt", "updatedAt"] },
+      },
+    });
+    if (!product || !product.length === 0) {
+      return next(customErrorHandler.notFound());
+    }
+    return res.status(200).json({ message: "Products found", product });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// ------------------ Card Section ---------------------------------------
+
+exports.createCard = async (req, res, next) => {
+  const { id } = req.params;
+  if (!id) {
+    return next(customErrorHandler.requiredField());
+  }
+  try {
+    const product = await productModels.findByPk(id, {
+      attributes: ["id", "name", "price", "stock"],
+    });
+    if (!product || !product.length === 0) {
+      return next(customErrorHandler.notFound());
+    }
+    if (!(req.body.quantity <= product.stock)) {
+      return res.status(400).json({
+        message: "Insufficient stock",
+        available_Stock: product.stock,
+      });
+    }
+
+    const createCard = await cardModels.create({
+      name: product.name,
+      price: product.price,
+      stock: product.stock,
+      quantity: req.body.quantity,
+      subtotal: product.price * req.body.quantity,
+      productId: product.id,
+    });
+    if (!createCard) {
+      return res.status(400).json({ message: "Card Failed" });
+    }
+    const [affectedRows] = await productModels.update(
+      {
+        stock: product.stock - req.body.quantity,
+      },
+      { where: { id: product.id } }
+    );
+
+    const updatedProduct = await productModels.findByPk(product.id);
+
+    if (updatedProduct.stock <= 5) {
+      await productModels.update(
+        {
+          stock: 100,
+        },
+        { where: { id: product.id } }
+      );
+    }
+
+    return res.send(createCard);
+  } catch (error) {
+    console.log(error);
+    return next(error);
+  }
+};
+
+exports.updateCard = async (req, res, next) => {
+  try {
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.getCard = async (req, res, next) => {
+  try {
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.deleteCard = async (req, res, next) => {
+  try {
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// ------------------- getRelatedProducts ----------------
+
+// category and price related product
+exports.getRelatedProducts = async (req, res, next) => {
+  const { id } = req.params;
+  if (!id) {
+    return next(customErrorHandler.requiredField());
+  }
+  try {
+    const product = await productModels.findByPk(id);
+    if (!product) {
+      return next(customErrorHandler.notFound());
+    }
+    const relatedProducts = await productModels.findAll({
+      where: {
+        categoryId: product.categoryId,
+        price: { [Op.gt]: [product.price] },
+      },
+      limit: 5,
+    });
+    if (!relatedProducts || !relatedProducts.length === 0) {
+      return next(customErrorHandler.notFound());
+    }
+    return res.status(200).json({ relatedProducts });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// -------------- Notification -----------
+exports.getNotification = async (req, res, next) => {
+  // Base On discount Price
+  try {
+    const products = await productModels.findAll({
+      where: {
+        discount_price: { [Op.ne]: 0 },
+      },
+    });
+    if (!products || !products.length === 0) {
+      return next(customErrorHandler.notFound());
+    }
+    return res.send(products);
+  } catch (error) {
+    return next(error);
+  }
+};
