@@ -1,35 +1,29 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../../config/connection");
+const User = require("../auth.model/register.model");
 const Product = require("./products.model");
-const User = require("./../auth.model/register.model");
 
-const Card = sequelize.define("Card", {
+const Wishlist = sequelize.define("Wishlist", {
   id: {
     type: DataTypes.INTEGER,
-    allowNull: false,
     autoIncrement: true,
+    allowNull: false,
     primaryKey: true,
+  },
+  image: {
+    type: DataTypes.STRING,
+    allowNull: true,
   },
   name: {
     type: DataTypes.STRING,
     allowNull: false,
   },
-
   price: {
     type: DataTypes.FLOAT,
     allowNull: false,
   },
-
-  quantity: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-  },
-  subtotal: {
-    type: DataTypes.FLOAT,
-    allowNull: false,
-  },
-  stock: {
-    type: DataTypes.INTEGER,
+  date: {
+    type: DataTypes.DATE,
     allowNull: false,
   },
   userId: {
@@ -46,10 +40,16 @@ const Card = sequelize.define("Card", {
     references: {
       model: Product,
       key: "id",
+      ss,
     },
   },
 });
 
-Card.sync({ alter: true });
+Wishlist.sync();
 
-module.exports = Card;
+Wishlist.belongsTo(User, { foreignKey: "userId" });
+User.hasMany(Wishlist, { foreignKey: "userId" });
+
+Wishlist.belongsTo(Product, { foreignKey: "productId" });
+Product.hasMany(Wishlist, { foreignKey: "productId" });
+module.exports = Wishlist;

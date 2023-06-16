@@ -464,6 +464,7 @@ exports.createCard = async (req, res, next) => {
       quantity: req.body.quantity,
       subtotal: product.price * req.body.quantity,
       productId: product.id,
+      userId: req.body.userId,
     });
     if (!createCard) {
       return res.status(400).json({ message: "Card Failed" });
@@ -494,14 +495,45 @@ exports.createCard = async (req, res, next) => {
 };
 
 exports.updateCard = async (req, res, next) => {
+  const { id } = req.params;
+  if (!id) {
+    return next(customErrorHandler.requiredField());
+  }
   try {
+    const user = await userModels.findOne({ where: { id: id } });
+    if (!user) {
+      return next(customErrorHandler.notFound());
+    }
+    const updateCard = await cardModels.update({
+      quantity: req.body.quantity,
+      subtotal: product.price * req.body.quantity,
+    });
   } catch (error) {
     return next(error);
   }
 };
 
 exports.getCard = async (req, res, next) => {
+  const { id } = req.params;
+  if (!id) {
+    return next(customErrorHandler.requiredField());
+  }
   try {
+    const user = await userModels.findOne({ where: { id: id } });
+    if (!user) {
+      return next(customErrorHandler.notFound());
+    }
+
+    const product = await cardModels.findAll({
+      model: userModels,
+      attributes: { exclude: ["createdAt", "updatedAt"] },
+    });
+    if (!product || product.length === 0) {
+      return next(customErrorHandler.notFound());
+    }
+    return res.status(200).json({
+      product,
+    });
   } catch (error) {
     return next(error);
   }
@@ -556,6 +588,44 @@ exports.getNotification = async (req, res, next) => {
       return next(customErrorHandler.notFound());
     }
     return res.send(products);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// Compare  with other product
+
+exports.compareProduct = async (req, res, next) => {
+  const { product1, product2 } = req.body;
+
+  try {
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// ----------------wishlist----------------------
+
+exports.createWishlist = async (req, res, next) => {
+  try {
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+exports.updateWishlist = async (req, res, next) => {
+  try {
+  } catch (error) {
+    return next(error);
+  }
+};
+
+exports.deleteWishlist = async (req, res, next) => {
+  const { id } = req.params;
+  if (!id) {
+    return next(customErrorHandler.requiredField());
+  }
+  try {
   } catch (error) {
     return next(error);
   }

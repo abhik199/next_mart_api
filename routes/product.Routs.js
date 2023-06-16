@@ -16,6 +16,7 @@ routes.route("/priceFilter").get(productCtr.priceFilter);
 routes.route("/getProduct").get(productCtr.Pagination);
 routes.route("/related/:id").get(productCtr.getRelatedProducts);
 routes.route("/notification").get(productCtr.getNotification);
+routes.route("/getCard/:id").get(productCtr.getCard);
 // routes.route("/card/:id").get(productCtr.createCard);
 
 // POST REQUESTs
